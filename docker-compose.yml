@@ -1,0 +1,98 @@
+version: '3.8'
+
+services:
+  eureka-server:
+    build:
+      context: ./eureka-server
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - spring-net
+
+  db-catalogue:
+    image: postgres:15
+    container_name: postgres-db-catalogue
+    environment:
+      POSTGRES_DB: catalogue_db
+      POSTGRES_USER: catalogue_user
+      POSTGRES_PASSWORD: catalogue_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-catalogue:/var/lib/postgresql/data
+      - ./ms-books-catalogue/src/main/resources:/docker-entrypoint-initdb.d
+    networks:
+      - spring-net
+
+  ms-books-catalogue:
+    build:
+      context: ./ms-books-catalogue
+    container_name: ms-books-catalogue
+    ports:
+      - "8081:8081"
+    depends_on:
+      - eureka-server
+      - db-catalogue
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-catalogue:5432/catalogue_db
+      SPRING_DATASOURCE_USERNAME: catalogue_user
+      SPRING_DATASOURCE_PASSWORD: catalogue_pass
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+    networks:
+      - spring-net
+
+  db-payments:
+    image: postgres:15
+    container_name: postgres-db-payments
+    environment:
+      POSTGRES_DB: payments_db
+      POSTGRES_USER: payments_user
+      POSTGRES_PASSWORD: payments_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-payments:/var/lib/postgresql/data
+    networks:
+      - spring-net
+
+  ms-books-payments:
+    build:
+      context: ./ms-books-payments
+    container_name: ms-books-payments
+    ports:
+      - "8082:8082"
+    depends_on:
+      - eureka-server
+      - db-payments
+      - ms-books-catalogue
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db-payments:5432/payments_db
+      SPRING_DATASOURCE_USERNAME: payments_user
+      SPRING_DATASOURCE_PASSWORD: payments_pass
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+    networks:
+      - spring-net
+
+  ms-api-gateway:
+    build:
+      context: ./ms-api-gateway
+    container_name: ms-api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+      - ms-books-catalogue
+      - ms-books-payments
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://eureka-server:8761/eureka
+      SPRING_APPLICATION_NAME: ms-api-gateway
+    networks:
+      - spring-net
+
+volumes:
+  pgdata-catalogue:
+  pgdata-payments:
+
+networks:
+  spring-net:
