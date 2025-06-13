@@ -1,39 +1,34 @@
 package com.example.ms_books_payments.entity;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.*;
 
+import java.time.LocalDateTime;
+
 @Entity
+@Table(name = "payments")
 public class Payment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    private String emailUsuario;
     private Long bookId;
-    private String userEmail;
-    private Double amount;
-    private LocalDateTime timestamp;
+    private Integer cantidad;
+
+    private LocalDateTime fechaCompra;
+
+    private String purchaseId;
 
     public Payment() {}
 
-    public Payment(Long id, Long bookId, String userEmail, Double amount, LocalDateTime timestamp) {
-        this.id = id;
+    public Payment(String emailUsuario, Long bookId, Integer cantidad) {
+        this.emailUsuario = emailUsuario;
         this.bookId = bookId;
-        this.userEmail = userEmail;
-        this.amount = amount;
-        this.timestamp = timestamp;
+        this.cantidad = cantidad;
     }
 
-    // Constructor sin id para crear antes de persistir
-    public Payment(Long bookId, String userEmail, Double amount, LocalDateTime timestamp) {
-        this.bookId = bookId;
-        this.userEmail = userEmail;
-        this.amount = amount;
-        this.timestamp = timestamp;
-    }
-
-    // Getters y Setters
+    // Getters y setters
 
     public Long getId() {
         return id;
@@ -41,6 +36,14 @@ public class Payment {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getEmailUsuario() {
+        return emailUsuario;
+    }
+
+    public void setEmailUsuario(String emailUsuario) {
+        this.emailUsuario = emailUsuario;
     }
 
     public Long getBookId() {
@@ -51,27 +54,27 @@ public class Payment {
         this.bookId = bookId;
     }
 
-    public String getUserEmail() {
-        return userEmail;
+    public Integer getCantidad() {
+        return cantidad;
     }
 
-    public void setUserEmail(String userEmail) {
-        this.userEmail = userEmail;
+    public void setCantidad(Integer cantidad) {
+        this.cantidad = cantidad;
     }
 
-    public Double getAmount() {
-        return amount;
+    public LocalDateTime getFechaCompra() {
+        return fechaCompra;
     }
 
-    public void setAmount(Double amount) {
-        this.amount = amount;
+    public void setFechaCompra(LocalDateTime fechaCompra) {
+        this.fechaCompra = fechaCompra;
     }
 
-    public LocalDateTime getTimestamp() {
-        return timestamp;
+    public String getPurchaseId() {
+        return purchaseId;
     }
 
-    public void setTimestamp(LocalDateTime timestamp) {
-        this.timestamp = timestamp;
+    public void setPurchaseId(String purchaseId) {
+        this.purchaseId = purchaseId;
     }
 }

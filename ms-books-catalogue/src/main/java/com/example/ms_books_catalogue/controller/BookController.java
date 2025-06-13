@@ -5,18 +5,19 @@ import com.example.ms_books_catalogue.exception.BookNotFoundException;
 import com.example.ms_books_catalogue.repository.BookRepository;
 import com.example.ms_books_catalogue.repository.BookSpecifications;
 
+import jakarta.validation.Valid;
+
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
-import java.util.List;
-import jakarta.validation.Valid;
+import java.util.*;
 
 @RestController
 @RequestMapping("/books")
-@CrossOrigin // permite llamadas desde frontend React
+@CrossOrigin
 public class BookController {
 
     private final BookRepository repo;
@@ -28,30 +29,53 @@ public class BookController {
     /* ---------- CRUD básico ---------- */
 
     @GetMapping("/{id}")
-    public Book getById(@PathVariable Long id) {
-        return repo.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+    public ResponseEntity<?> getById(@PathVariable Long id) {
+        Book book = repo.findById(id).orElseThrow(() -> new BookNotFoundException(id));
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensaje", "Libro encontrado");
+        response.put("libro", book);
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping
-    public Book create(@Valid @RequestBody Book b) {
-        return repo.save(b);
+    public ResponseEntity<?> create(@Valid @RequestBody Book b) {
+        Book saved = repo.save(b);
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensaje", "Libro creado exitosamente");
+        response.put("libro", saved);
+        return ResponseEntity.status(201).body(response);
     }
 
     @PutMapping("/{id}")
-    public Book update(@PathVariable Long id, @Valid @RequestBody Book b) {
+    public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody Book b) {
+        if (!repo.existsById(id)) {
+            Map<String, String> error = new HashMap<>();
+            error.put("mensaje", "Libro no encontrado con id: " + id);
+            return ResponseEntity.status(404).body(error);
+        }
         b.setId(id);
-        return repo.save(b);
+        Book updated = repo.save(b);
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensaje", "Libro actualizado exitosamente");
+        response.put("libro", updated);
+        return ResponseEntity.ok(response);
     }
 
     @DeleteMapping("/{id}")
-    public void delete(@PathVariable Long id) {
+    public ResponseEntity<?> delete(@PathVariable Long id) {
+        if (!repo.existsById(id)) {
+            throw new BookNotFoundException(id);
+        }
         repo.deleteById(id);
+        Map<String, String> response = new HashMap<>();
+        response.put("mensaje", "Libro eliminado exitosamente");
+        return ResponseEntity.ok(response);
     }
 
     /* ---------- Búsqueda dinámica ---------- */
 
     @GetMapping
-    public List<Book> search(
+    public ResponseEntity<?> search(
             @RequestParam(required = false) String titulo,
             @RequestParam(required = false) String autor,
             @RequestParam(required = false) String categoria,
@@ -62,8 +86,7 @@ public class BookController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fechaPublicacionHasta,
             @RequestParam(required = false) Integer stockMinimo,
             @RequestParam(required = false) Double precioMinimo,
-            @RequestParam(required = false) Double precioMaximo) 
-            {
+            @RequestParam(required = false) Double precioMaximo) {
 
         Specification<Book> spec = Specification.where(BookSpecifications.tituloContiene(titulo))
                 .and(BookSpecifications.autorContiene(autor))
@@ -72,22 +95,38 @@ public class BookController {
                 .and(BookSpecifications.valoracionEs(valoracion))
                 .and(BookSpecifications.visibleEs(visible))
                 .and(BookSpecifications.fechaPublicacionEntre(fechaPublicacionDesde, fechaPublicacionHasta))
+                .and(BookSpecifications.stockMayorA(stockMinimo))
                 .and(BookSpecifications.precioMayorOIgual(precioMinimo))
                 .and(BookSpecifications.precioMenorOIgual(precioMaximo));
 
-        return repo.findAll(spec);
+        List<Book> resultado = repo.findAll(spec);
+        Map<String, Object> response = new HashMap<>();
+        response.put("mensaje", "Consulta realizada exitosamente");
+        response.put("total", resultado.size());
+        response.put("libros", resultado);
+        return ResponseEntity.ok(response);
     }
 
+    /* ---------- Actualizar stock ---------- */
+
     @PutMapping("/{id}/stock")
-    public ResponseEntity<Book> discountStock(@PathVariable Long id, @RequestParam Integer cantidadComprada) {
+    public ResponseEntity<?> discountStock(@PathVariable Long id, @RequestParam Integer cantidadComprada) {
+        if (cantidadComprada == null || cantidadComprada <= 0) {
+            Map<String, String> error = new HashMap<>();
+            error.put("mensaje", "La cantidad comprada debe ser mayor a cero");
+            return ResponseEntity.badRequest().body(error);
+        }
+
         Book book = repo.findById(id).orElseThrow(() -> new BookNotFoundException(id));
         int nuevoStock = (book.getStock() != null ? book.getStock() : 0) - cantidadComprada;
         if (nuevoStock < 0) {
-            return ResponseEntity.badRequest().body(null);
+            Map<String, String> error = new HashMap<>();
+            error.put("mensaje", "Stock insuficiente para el libro con id: " + id);
+            return ResponseEntity.badRequest().body(error);
         }
         book.setStock(nuevoStock);
-        repo.save(book);
-        return ResponseEntity.ok(book);
+        Book updatedBook = repo.save(book);
+        return ResponseEntity.ok(updatedBook);
     }
 
 }
